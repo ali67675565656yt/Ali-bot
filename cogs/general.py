@@ -16,7 +16,7 @@ class General(commands.Cog):
     async def ping(self, interaction: discord.Interaction):
         cfg = self.bot.cfg
         embed = discord.Embed(
-            title=f"👁️ {cfg['brand']['name']} يعمل",
+            title=f" {cfg['brand']['name']} يعمل",
             description="أنا جاهز.",
             color=get_color(cfg),
         )
