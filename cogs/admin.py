@@ -18,7 +18,7 @@ class Admin(commands.Cog):
     async def status(self, interaction: discord.Interaction):
         cfg = self.bot.cfg
         ai = cfg["ai"]
-        embed = discord.Embed(title=f"📊 حالة {cfg['brand']['name']}", color=get_color(cfg))
+        embed = discord.Embed(title=f" حالة {cfg['brand']['name']}", color=get_color(cfg))
         embed.add_field(
             name="يعمل منذ",
             value=discord.utils.format_dt(self.bot.started_at, "R"),
