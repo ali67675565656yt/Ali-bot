@@ -10,15 +10,17 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 from utils.config import ConfigError, load_config
+from utils.logger import setup_logging
+from utils.permissions import NotAuthorized
 
 # الأقسام (cogs) التي يحمّلها البوت. نضيف هنا لاحقًا: embeds وai وغيرها
-COGS = ["cogs.general"]
+COGS = ["cogs.general", "cogs.admin"]
 
 log = logging.getLogger("ayn")
 
 
 class AynTree(app_commands.CommandTree):
-    """شجرة الأوامر: تفحص كل أمر قبل تنفيذه."""
+    """شجرة الأوامر: تفحص كل أمر قبل تنفيذه وتعالج أخطاءه."""
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         cfg = self.client.cfg
@@ -32,12 +34,24 @@ class AynTree(app_commands.CommandTree):
         return True
 
     async def on_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
-        # الرد على الرفض تم أعلاه، فلا نكرره
-        if isinstance(error, app_commands.CheckFailure):
-            return
-        # نسجل الخطأ في السجل فقط، ولا نعرض تفاصيله للعضو
-        log.error("خطأ في الأمر %s", getattr(interaction.command, "name", "؟"), exc_info=error)
-        msg = "حصل خطأ غير متوقع، حاول مرة ثانية بعد قليل."
+        cfg = self.client.cfg
+        name = getattr(interaction.command, "name", "؟")
+
+        if isinstance(error, NotAuthorized):
+            # عضو بدون الصلاحية المطلوبة
+            msg = cfg["permissions"]["denied_message"]
+            log.warning("رفض صلاحية: المستخدم %s حاول /%s", interaction.user.id, name)
+        elif isinstance(error, app_commands.CommandOnCooldown):
+            # حماية من التكرار السريع
+            msg = f"تمهّل قليلًا، حاول بعد {error.retry_after:.0f} ثانية."
+            log.info("Cooldown: المستخدم %s على /%s", interaction.user.id, name)
+        elif isinstance(error, app_commands.CheckFailure):
+            return  # الرد تم داخل interaction_check
+        else:
+            # نسجل الخطأ في السجل فقط، ولا نعرض تفاصيله للعضو
+            log.error("خطأ في الأمر /%s", name, exc_info=error)
+            msg = "حصل خطأ غير متوقع، حاول مرة ثانية بعد قليل."
+
         if interaction.response.is_done():
             await interaction.followup.send(msg, ephemeral=True)
         else:
@@ -54,6 +68,7 @@ class AynBot(commands.Bot):
         )
         self.cfg = cfg
         self.guild_obj = discord.Object(id=cfg["guild_id"])
+        self.started_at = discord.utils.utcnow()  # لعرض مدة التشغيل
 
     async def setup_hook(self):
         # تحميل الأقسام
@@ -78,6 +93,13 @@ class AynBot(commands.Bot):
             log.warning("تمت دعوتي لسيرفر غير مسموح، سأغادر: %s", guild.id)
             await guild.leave()
 
+    async def on_app_command_completion(self, interaction: discord.Interaction, command):
+        # سجل الاستخدام: نسجل المعرّفات فقط، لا محتوى الرسائل
+        log.info(
+            "تم تنفيذ /%s | المستخدم=%s | القناة=%s",
+            command.name, interaction.user.id, interaction.channel_id,
+        )
+
 
 def main():
     load_dotenv()  # يقرأ ملف .env إن وُجد (للاختبار على الهاتف)
@@ -88,10 +110,7 @@ def main():
         print(f"خطأ في الإعدادات: {e}")
         sys.exit(1)
 
-    logging.basicConfig(
-        level=getattr(logging, cfg.get("logging", {}).get("level", "INFO").upper(), logging.INFO),
-        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    )
+    setup_logging(cfg)
 
     token = os.getenv("DISCORD_TOKEN", "").strip()
     if not token or token.startswith("ضع_"):

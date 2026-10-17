@@ -8,4 +8,5 @@ venv/
 .venv/
 
 # سجلات
+logs/
 *.log

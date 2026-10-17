@@ -12,10 +12,11 @@ class General(commands.Cog):
         self.bot = bot
 
     @app_commands.command(name="ping", description="اختبر أن البوت يعمل واعرف سرعة استجابته")
+    @app_commands.checks.cooldown(1, 5.0)  # مرة كل 5 ثوانٍ لكل عضو
     async def ping(self, interaction: discord.Interaction):
         cfg = self.bot.cfg
         embed = discord.Embed(
-            title=f" {cfg['brand']['name']} يعمل",
+            title=f"👁️ {cfg['brand']['name']} يعمل",
             description="أنا جاهز.",
             color=get_color(cfg),
         )
