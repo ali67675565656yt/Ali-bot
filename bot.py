@@ -14,7 +14,7 @@ from utils.logger import setup_logging
 from utils.permissions import NotAuthorized
 
 # الأقسام (cogs) التي يحمّلها البوت. نضيف هنا لاحقًا: embeds وai وغيرها
-COGS = ["cogs.general", "cogs.admin"]
+COGS = ["cogs.general", "cogs.admin", "cogs.embeds"]
 
 log = logging.getLogger("ayn")
 
